@@ -204,9 +204,21 @@ int main(int argc, char **argv) {
     return -1;
   }
   nlohmann::json translation_db = nlohmann::json::parse(translation_db_raw);
+  
+  nlohmann::json translation_db_origin;
+  
+  for (int index = 0; index < (int)translation_db.size(); index++) {
+    std::string digest_hex = translation_db["text_hash_by_index"][index]["hash"];
+    translation_db_origin["script_text_by_hash"][digest_hex] = {
+        {"jp", translation_db["text_hash_by_index"][index]["OrgText"]},
+        {"en", translation_db["text_hash_by_index"][index]["NewText"]},
+        {"notes", ""},
+    };
+  }
+  
 
   // Retranslate the script
-  mg::data::Mzp translated_mzp = patch_string_table(translation_db, mzp);
+  mg::data::Mzp translated_mzp = patch_string_table(translation_db_origin, mzp);
 
   // Write out the translated archive
   std::string mzp_out;

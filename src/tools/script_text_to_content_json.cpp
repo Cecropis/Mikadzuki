@@ -51,7 +51,7 @@ int main(int argc, char **argv) {
   }
 
   // Extract the string offset table
-  const std::string &string_offsets_raw = mzp.entry_data[0];
+  const std::string &string_offsets_raw = mzp.entry_data[4];
   const uint32_t *string_offsets_u32 =
       reinterpret_cast<const uint32_t *>(string_offsets_raw.data());
   const unsigned string_offset_count =
@@ -64,7 +64,7 @@ int main(int argc, char **argv) {
 
   // Now that we have offsets, iterate the string data and extract from each
   // start offset until we hit \r\n
-  const std::string &string_data_raw = mzp.entry_data[1];
+  const std::string &string_data_raw = mzp.entry_data[5];
   const char *const end_ptr = &string_data_raw[string_data_raw.size() - 1];
   std::vector<std::string> string_data;
   for (uint32_t offset : string_data_offsets) {
@@ -88,20 +88,25 @@ int main(int argc, char **argv) {
   }
 
   // Generate a content hash for each string and encode as json
-  nlohmann::json j;
+  int index_number = 0;
+  nlohmann::json indexList;
+  
+  
   for (auto &string : string_data) {
     const std::string digest_bytes = sha256(string);
     const std::string digest_hex = mg::string::bytes_to_hex(digest_bytes);
-    j["script_text_by_hash"][digest_hex] = {
-        {"jp", string},
-        {"en", ""},
-        {"notes", ""},
+    
+    indexList["text_hash_by_index"][index_number] = {
+        {"hash", digest_hex},
+        {"OrgText", string},
+        {"NewText",""},
     };
+    ++index_number;
   }
 
   // Serialize and emit
-  const std::string serialized_json = j.dump(2);
-  if (!mg::fs::write_file(output_filename, serialized_json)) {
+  const std::string index_serialized_json = indexList.dump(2);
+  if (!mg::fs::write_file(output_filename, index_serialized_json)) {
     fprintf(stderr, "Failed to write '%s'\n", output_filename);
     return -1;
   }
