@@ -207,7 +207,7 @@ int main(int argc, char **argv) {
   
   nlohmann::json translation_db_origin;
   
-  for (int index = 0; index < (int)translation_db.size(); index++) {
+  for (int index = 0; index < (int)translation_db["text_hash_by_index"].size(); index++) {
     std::string digest_hex = translation_db["text_hash_by_index"][index]["hash"];
     translation_db_origin["script_text_by_hash"][digest_hex] = {
         {"jp", translation_db["text_hash_by_index"][index]["OrgText"]},
