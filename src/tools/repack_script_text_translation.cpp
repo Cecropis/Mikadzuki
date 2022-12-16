@@ -1,4 +1,5 @@
 #include <filesystem>
+#include <string>
 
 #include <json.hpp>
 
@@ -64,7 +65,7 @@ extract_string_table(const std::string &string_data_raw,
   return string_data;
 }
 
-mg::data::Mzp patch_string_table(const nlohmann::json &translation_db,
+mg::data::Mzp patch_string_table(nlohmann::json &translation_db,
                                  const mg::data::Mzp mzp_archive) {
   // The MZP archive consists of N pairs of string offset table + string data
   // table. For each pair, iterate the string table, extract the string, hash
@@ -103,8 +104,24 @@ mg::data::Mzp patch_string_table(const nlohmann::json &translation_db,
       auto &script_text_by_hash = translation_db["script_text_by_hash"];
       if (script_text_by_hash.contains(line_digest_hex)) {
         if (script_text_by_hash[line_digest_hex].contains(TARGET_LANGUAGE)) {
-          const std::string translated_line =
-              script_text_by_hash[line_digest_hex][TARGET_LANGUAGE];
+          std::string translated_line;
+          std::string times_s = script_text_by_hash[line_digest_hex]["times"];
+    	  int times = atoi(times_s.c_str());
+          if (times > 0){
+            std::string index_s = script_text_by_hash[line_digest_hex]["index"];
+            translated_line = script_text_by_hash[line_digest_hex][index_s];
+            
+            int index = atoi(index_s.c_str());
+            if (index < times) {
+              index = index + 1;
+            }
+            script_text_by_hash[line_digest_hex]["index"] = std::to_string(index);
+          }
+          else {
+            translated_line = script_text_by_hash[line_digest_hex][TARGET_LANGUAGE];
+          }
+              
+              
           if (translated_line.size() > 0) {
             // We have a translation
             line_to_insert = translated_line;
@@ -207,13 +224,24 @@ int main(int argc, char **argv) {
   
   nlohmann::json translation_db_origin;
   
-  for (int index = 0; index < (int)translation_db.size(); index++) {
+  for (int index = 0; index < (int)translation_db["text_hash_by_index"].size(); index++) {
     std::string digest_hex = translation_db["text_hash_by_index"][index]["hash"];
-    translation_db_origin["script_text_by_hash"][digest_hex] = {
-        {"jp", translation_db["text_hash_by_index"][index]["OrgText"]},
-        {"en", translation_db["text_hash_by_index"][index]["NewText"]},
-        {"notes", ""},
-    };
+    if (translation_db_origin["script_text_by_hash"].contains(digest_hex)) {
+    	std::string times_s = translation_db_origin["script_text_by_hash"][digest_hex]["times"];
+    	int times = atoi(times_s.c_str()) + 1;
+    	translation_db_origin["script_text_by_hash"][digest_hex]["times"] = std::to_string(times);
+    	translation_db_origin["script_text_by_hash"][digest_hex][std::to_string(times)] = translation_db["text_hash_by_index"][index]["NewText"];
+    }
+    else {
+    	translation_db_origin["script_text_by_hash"][digest_hex] = {
+    	    {"jp", translation_db["text_hash_by_index"][index]["OrgText"]},
+    	    {"en", translation_db["text_hash_by_index"][index]["NewText"]},
+    	    {"notes", ""},
+    	    {"index", "0"},
+    	    {"times", "0"},
+    	};
+    	translation_db_origin["script_text_by_hash"][digest_hex]["0"] = translation_db["text_hash_by_index"][index]["NewText"];
+    }
   }
   
 
